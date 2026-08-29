@@ -10,6 +10,12 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Rajdhani:wght@500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="index.css">
+    <style>
+      .unit-visual { position:relative; height:260px; overflow:hidden; background:radial-gradient(circle at 50% 35%, rgba(74,144,196,.14), transparent 62%); }
+      .unit-visual canvas { width:100% !important; height:100% !important; display:block; cursor:grab; }
+      .unit-visual canvas:active { cursor:grabbing; }
+      .model-label { position:absolute; left:12px; bottom:10px; font:700 10px/1 'JetBrains Mono', monospace; letter-spacing:.12em; color:#7fd1ff; opacity:.75; pointer-events:none; }
+    </style>
 </head>
 
 <body>
@@ -41,16 +47,7 @@
                     <!-- Card 1 -->
 
                     <div class="unit-card hud-frame">
-                        <div class="unit-visual">
-                            <svg viewBox="0 0 100 120" fill="none" stroke="#4a90c4" stroke-width="1.4">
-                                <rect x="35" y="8" width="30" height="26" rx="5" />
-                                <rect x="30" y="36" width="40" height="34" rx="4" />
-                                <rect x="14" y="40" width="14" height="28" rx="3" />
-                                <rect x="72" y="40" width="14" height="28" rx="3" />
-                                <rect x="36" y="72" width="12" height="34" rx="3" />
-                                <rect x="52" y="72" width="12" height="34" rx="3" />
-                            </svg>
-                        </div>
+                        <div class="unit-visual" data-suit="vesper"><div class="model-label">DRAG TO INSPECT</div></div>
 
                         <div class="unit-name">VESPER-A</div>
                         <div class="unit-class">Assault Frame</div>
@@ -68,16 +65,7 @@
                     </div>
                     <!-- Card 2 -->
                     <div class="unit-card hud-frame">
-                        <div class="unit-visual">
-                            <svg viewBox="0 0 100 120" fill="none" stroke="#4a90c4" stroke-width="1.4">
-                                <rect x="33" y="6" width="34" height="24" rx="5" />
-                                <rect x="24" y="32" width="52" height="40" rx="4" />
-                                <rect x="6" y="36" width="16" height="32" rx="3" />
-                                <rect x="78" y="36" width="16" height="32" rx="3" />
-                                <rect x="32" y="74" width="14" height="36" rx="3" />
-                                <rect x="54" y="74" width="14" height="36" rx="3" />
-                            </svg>
-                        </div>
+                        <div class="unit-visual" data-suit="bastion"><div class="model-label">DRAG TO INSPECT</div></div>
 
                         <div class="unit-name">BASTION-K</div>
                         <div class="unit-class">Heavy Support</div>
@@ -95,16 +83,7 @@
                     </div>
                     <!-- Card 3 -->
                     <div class="unit-card hud-frame">
-                        <div class="unit-visual">
-                            <svg viewBox="0 0 100 120" fill="none" stroke="#4a90c4" stroke-width="1.4">
-                                <rect x="37" y="10" width="26" height="22" rx="5" />
-                                <rect x="33" y="34" width="34" height="30" rx="4" />
-                                <rect x="18" y="37" width="12" height="24" rx="3" />
-                                <rect x="70" y="37" width="12" height="24" rx="3" />
-                                <rect x="38" y="66" width="10" height="38" rx="3" />
-                                <rect x="52" y="66" width="10" height="38" rx="3" />
-                            </svg>
-                        </div>
+                        <div class="unit-visual" data-suit="wisp"><div class="model-label">DRAG TO INSPECT</div></div>
                         <div class="unit-name">WISP-R</div>
                         <div class="unit-class">Recon Frame</div>
                         <div class="unit-specs">
@@ -142,6 +121,40 @@
             </div>
         </footer>
 
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/examples/js/controls/OrbitControls.js"></script>
+    <script src="assets/suits/VesperAssets/vesper.mech.js"></script>
+    <script src="assets/suits/bastionAssets/bastion.mech.js"></script>
+    <script src="assets/suits/WispAssets/wisp.mech.js"></script>
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.unit-visual[data-suit]').forEach((container) => {
+          const key = container.dataset.suit;
+          if (!window.MechBuilders || !window.MechBuilders[key]) return;
+          const scene = new THREE.Scene();
+          const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+          camera.position.set(5.5, 4.2, 7);
+          const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+          renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+          renderer.shadowMap.enabled = true;
+          container.insertBefore(renderer.domElement, container.firstChild);
+          const controls = new THREE.OrbitControls(camera, renderer.domElement);
+          controls.target.set(0, 2.3, 0); controls.enableDamping = true;
+          controls.enablePan = false; controls.minDistance = 4; controls.maxDistance = 11;
+          controls.maxPolarAngle = Math.PI / 2.05;
+          scene.add(new THREE.HemisphereLight(0xaedcff, 0x101722, 2.1));
+          const keyLight = new THREE.DirectionalLight(0xffffff, 2.2); keyLight.position.set(5,8,6); scene.add(keyLight);
+          const rim = new THREE.DirectionalLight(0x4a90c4, 2.0); rim.position.set(-6,4,-5); scene.add(rim);
+          const built = window.MechBuilders[key](THREE);
+          const root = built.root || built; scene.add(root);
+          const grid = new THREE.GridHelper(10, 12, 0x315c80, 0x162331); grid.position.y = 0; scene.add(grid);
+          function resize(){ const w=container.clientWidth, h=container.clientHeight; camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h,false); }
+          new ResizeObserver(resize).observe(container); resize();
+          function tick(){ requestAnimationFrame(tick); root.rotation.y += 0.0025; controls.update(); renderer.render(scene,camera); } tick();
+        });
+      });
+    </script>
 </body>
 
 </html>

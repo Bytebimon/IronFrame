@@ -418,6 +418,13 @@
         .btn-primary:active {
             transform: scale(0.95);
         }
+
+        #panel-weapon { bottom: 18px; right: 18px; min-width: 250px; }
+        #weapon-name { color: var(--amber, #ffb627); font-family: var(--font-display, sans-serif); font-size: 16px; letter-spacing: .08em; }
+        #weapon-slots { display:flex; gap:4px; margin-top:8px; }
+        .weapon-slot { width:28px; height:22px; display:grid; place-items:center; border:1px solid var(--line,#2a3742); color:var(--steel-dim,#7c8a96); font-size:11px; }
+        .weapon-slot.active { border-color:var(--amber,#ffb627); color:var(--amber,#ffb627); box-shadow:0 0 10px rgba(255,182,39,.25); }
+
     </style>
 </head>
 
@@ -458,6 +465,12 @@
         <div id="panel-speed" class="hud-corner-panel">
             <div class="bar-label"><span>Velocity</span></div>
             <div id="speed-display">0</div>
+        </div>
+
+        <div id="panel-weapon" class="hud-corner-panel">
+            <div class="bar-label"><span>Weapon System</span><span id="weapon-key">1</span></div>
+            <div id="weapon-name">PULSE RIFLE</div>
+            <div id="weapon-slots"></div>
         </div>
 
         <div id="panel-radar" class="hud-corner-panel">
@@ -501,7 +514,7 @@
                     <p class="font-bold text-white mb-1">DESKTOP</p>
                     <p>WASD or Arrow Keys to Move</p>
                     <p>Mouse to Look (click to lock)</p>
-                    <p>Left Click to Fire</p>
+                    <p>Left Click to Fire</p><p>Keys 1–6 to Switch Weapons</p>
                 </div>
                 <div class="bg-slate-800 p-3 rounded">
                     <p class="font-bold text-white mb-1">MOBILE</p>
@@ -598,6 +611,15 @@
         const HEAT_PER_SHOT = 9;
         const HEAT_COOL_RATE = 28; // per second
         let overheated = false;
+        const WEAPONS = [
+            { name: 'PULSE RIFLE', damage: 15, cooldown: 150, speed: 90, heat: 9, color: 0x60a5fa },
+            { name: 'BURST CANNON', damage: 26, cooldown: 320, speed: 82, heat: 16, color: 0xffb627 },
+            { name: 'RAIL LANCE', damage: 55, cooldown: 700, speed: 150, heat: 28, color: 0xe5e7eb },
+            { name: 'PLASMA BOLT', damage: 34, cooldown: 430, speed: 65, heat: 21, color: 0xa855f7 },
+            { name: 'SCATTER SHOT', damage: 11, cooldown: 480, speed: 78, heat: 24, color: 0x22d3ee, pellets: 5 },
+            { name: 'ARC DRIVER', damage: 80, cooldown: 1000, speed: 115, heat: 35, color: 0xf43f5e }
+        ];
+        let selectedWeapon = 0;
 
         function initThreeJS() {
             const container = document.getElementById('game-canvas');
@@ -648,6 +670,7 @@
             scene.add(gridHelper);
 
             createBoundaries();
+            createArenaMap();
 
             window.addEventListener('resize', onWindowResize, false);
         }
@@ -669,6 +692,24 @@
                 wall.rotation.y = w.rot;
                 scene.add(wall);
             });
+        }
+
+        function createArenaMap() {
+            const structureMat = new THREE.MeshStandardMaterial({ color: 0x17202b, metalness: 0.65, roughness: 0.55 });
+            const trimMat = new THREE.MeshStandardMaterial({ color: 0xffb627, emissive: 0x5a3600, metalness: 0.7 });
+            const blocks = [
+                [-30,-28,8,7,5], [30,-28,8,7,5], [-30,28,8,7,5], [30,28,8,7,5],
+                [0,-22,14,4,8], [0,22,14,4,8], [-20,0,5,6,14], [20,0,5,6,14],
+                [-8,0,5,3,5], [8,0,5,3,5]
+            ];
+            blocks.forEach(([x,z,w,h,d], i) => {
+                const block = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), structureMat);
+                block.position.set(x,h/2,z); block.castShadow=true; block.receiveShadow=true; scene.add(block);
+                const trim = new THREE.Mesh(new THREE.BoxGeometry(w+.08,.18,d+.08), trimMat);
+                trim.position.set(x,h+.1,z); scene.add(trim);
+            });
+            const center = new THREE.Mesh(new THREE.CylinderGeometry(10,10,.4,48), trimMat);
+            center.position.y=.2; scene.add(center);
         }
 
         // Shared bullet/enemy/particle materials
@@ -792,7 +833,7 @@
 
                 // --- SHOOTING ---
                 const isFiring = controlMode === 'mobile' ? isAimingTouch : isMouseDown;
-                if (isFiring && !overheated && Date.now() - this.lastShotTime > WEAPON_COOLDOWN) {
+                if (isFiring && !overheated && Date.now() - this.lastShotTime > WEAPONS[selectedWeapon].cooldown) {
                     this.shoot();
                 }
 
@@ -816,7 +857,13 @@
                 camera.getWorldDirection(direction);
                 direction.normalize();
 
-                projectiles.push(new Projectile(gunWorldPos, direction, this.bulletDamage));
+                const weapon = WEAPONS[selectedWeapon];
+                const pellets = weapon.pellets || 1;
+                for (let i = 0; i < pellets; i++) {
+                    const shotDir = direction.clone();
+                    if (pellets > 1) shotDir.add(new THREE.Vector3((Math.random()-.5)*0.12,(Math.random()-.5)*0.12,(Math.random()-.5)*0.12)).normalize();
+                    projectiles.push(new Projectile(gunWorldPos.clone(), shotDir, weapon.damage, weapon.speed, weapon.color));
+                }
 
                 // Recoil on the (invisible) arm — kept for muzzle-position realism
                 this.rightArmGroup.position.z -= 0.5;
@@ -826,7 +873,7 @@
 
                 // Cockpit feedback: muzzle flash + heat
                 this.flashMuzzle();
-                heat = Math.min(100, heat + HEAT_PER_SHOT);
+                heat = Math.min(100, heat + WEAPONS[selectedWeapon].heat);
                 if (heat >= 100) overheated = true;
             }
 
@@ -856,16 +903,16 @@
         }
 
         class Projectile {
-            constructor(position, direction, damage) {
+            constructor(position, direction, damage, speed, color) {
                 const geo = new THREE.CylinderGeometry(0.1, 0.1, 1.5, 8);
                 geo.rotateX(Math.PI / 2);
-                this.mesh = new THREE.Mesh(geo, worldMaterials.bulletBlue);
+                this.mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: color || 0x60a5fa }));
                 this.mesh.position.copy(position);
                 this.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), direction);
                 scene.add(this.mesh);
 
                 this.direction = direction;
-                this.speed = 90;
+                this.speed = speed || 90;
                 this.life = 2.0;
                 this.damage = damage || 10;
             }
@@ -887,21 +934,20 @@
                 else if (side === 2) { x = -edge; z = Math.random() * edge * 2 - edge; }
                 else { x = edge; z = Math.random() * edge * 2 - edge; }
 
-                const geo = new THREE.TetrahedronGeometry(1.5, 0);
-                this.mesh = new THREE.Mesh(geo, worldMaterials.enemyRed);
-                this.mesh.position.set(x, 2, z);
-                this.mesh.castShadow = true;
+                const suitKeys = Object.keys(FRAME_META);
+                this.suitKey = suitKeys[Math.floor(Math.random() * suitKeys.length)];
+                const built = window.MechBuilders[this.suitKey](THREE);
+                this.mesh = built.root;
+                const scale = 0.7 + Math.random() * 0.2;
+                this.mesh.scale.setScalar(scale);
+                this.mesh.position.set(x, 0, z);
+                this.mesh.traverse(node => { if (node.isMesh) { node.castShadow = true; node.material = node.material.clone(); if (node.material.emissive) node.material.emissive.setHex(0x550000); } });
                 scene.add(this.mesh);
 
-                this.speed = 6 + Math.random() * 4;
-                this.health = 20;
-                this.damage = 10;
-
-                this.rotSpeed = new THREE.Vector3(
-                    Math.random() * 2 - 1,
-                    Math.random() * 2 - 1,
-                    Math.random() * 2 - 1
-                );
+                this.speed = 5 + Math.random() * 4;
+                this.health = 35 + Math.random() * 35;
+                this.damage = 8 + Math.random() * 8;
+                this.rotSpeed = new THREE.Vector3();
             }
 
             update(dt) {
@@ -911,9 +957,7 @@
                         .normalize();
                     this.mesh.position.add(direction.multiplyScalar(this.speed * dt));
                 }
-                this.mesh.rotation.x += this.rotSpeed.x * dt;
-                this.mesh.rotation.y += this.rotSpeed.y * dt;
-                this.mesh.rotation.z += this.rotSpeed.z * dt;
+                if (player) this.mesh.rotation.y = Math.atan2(player.mesh.position.x - this.mesh.position.x, player.mesh.position.z - this.mesh.position.z);
             }
         }
 
@@ -961,10 +1005,12 @@
             // Desktop Keyboard
             window.addEventListener('keydown', (e) => {
                 const key = e.key.toLowerCase();
+                if (/^[1-6]$/.test(key) && currentState === GameState.PLAYING) { selectWeapon(Number(key)-1); e.preventDefault(); return; }
                 if (keys.hasOwnProperty(key)) { e.preventDefault(); keys[key] = true; }
             });
             window.addEventListener('keyup', (e) => {
                 const key = e.key.toLowerCase();
+                if (/^[1-6]$/.test(key) && currentState === GameState.PLAYING) { selectWeapon(Number(key)-1); e.preventDefault(); return; }
                 if (keys.hasOwnProperty(key)) { e.preventDefault(); keys[key] = false; }
             });
 
@@ -1106,6 +1152,20 @@
             zoneAim.addEventListener('touchcancel', (e) => handleTouchEnd(e, false));
         }
 
+        function selectWeapon(index) {
+            selectedWeapon = THREE.MathUtils.clamp(index, 0, WEAPONS.length - 1);
+            updateWeaponHUD();
+        }
+        function updateWeaponHUD() {
+            const weapon = WEAPONS[selectedWeapon];
+            const name = document.getElementById('weapon-name');
+            const key = document.getElementById('weapon-key');
+            const slots = document.getElementById('weapon-slots');
+            if (!name || !slots) return;
+            name.textContent = weapon.name; key.textContent = selectedWeapon + 1;
+            slots.innerHTML = WEAPONS.map((w,i) => `<div class="weapon-slot ${i===selectedWeapon?'active':''}">${i+1}</div>`).join('');
+        }
+
         let spawnTimer = 0;
         let spawnRate = 2.0;
 
@@ -1223,8 +1283,10 @@
             pitch = 0;
 
             player = new Player(selectedFrame);
+            selectedWeapon = 0;
 
             updateFrameIdentityHUD();
+            updateWeaponHUD();
             updateHUD();
             currentState = GameState.PLAYING;
             lastTime = performance.now();
@@ -1332,6 +1394,7 @@
             initThreeJS();
             setupInputs();
             updateFrameIdentityHUD();
+            updateWeaponHUD();
 
             document.getElementById('btn-desktop').addEventListener('click', () => { controlMode = 'desktop'; startGame(); });
             document.getElementById('btn-mobile').addEventListener('click', () => { controlMode = 'mobile'; if (document.pointerLockElement) document.exitPointerLock(); startGame(); });
