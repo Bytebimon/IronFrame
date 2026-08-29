@@ -4,10 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Operation Cyberspace: Arena</title>
+    <title>Operation Cyberspace: Multiplayer Arena</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <link rel="stylesheet" href="../index.css">
 
     <!-- Per-frame 3D mech assets -->
@@ -19,6 +20,14 @@
 </head>
 
 <body>
+    <!-- Multiplayer lobby: PeerJS uses a short share code for direct peer-to-peer sessions. -->
+    <div id="multiplayer-lobby" style="position:fixed;z-index:80;left:50%;top:12px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;padding:10px 12px;background:rgba(2,6,23,.88);border:1px solid rgba(96,165,250,.55);border-radius:10px;color:#dbeafe;font-family:Inter,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.35)">
+        <button id="mp-host" class="btn-primary">Host &amp; Create Code</button>
+        <input id="mp-code" maxlength="8" placeholder="Share code" style="width:110px;padding:8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:white;text-transform:uppercase">
+        <button id="mp-join" class="btn-primary">Join</button>
+        <span id="mp-status" style="font-size:12px;color:#93c5fd">Solo mode</span>
+    </div>
+
 
     <!-- Cockpit canopy vignette -->
     <div id="cockpit-frame"></div>
@@ -853,6 +862,7 @@
                 updateThreatCount();
             }
 
+            updateMultiplayer();
             renderer.render(scene, camera);
         }
 
@@ -991,6 +1001,66 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
+        // --- SHARE-CODE MULTIPLAYER ---
+        // This is peer-to-peer networking. The host shares the generated code;
+        // peers exchange transform/fire state directly and see each other live.
+        let mpPeer = null, mpConn = null, remotePlayer = null, remoteState = null;
+        let mpLastSend = 0;
+
+        function makeShareCode() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
+        function setMPStatus(text) { const el=document.getElementById('mp-status'); if(el) el.textContent=text; }
+        function clearRemotePlayer() { if(remotePlayer){ scene.remove(remotePlayer); remotePlayer=null; } }
+        function ensureRemotePlayer(frameKey) {
+            if (remotePlayer && remotePlayer.userData.frameKey === frameKey) return remotePlayer;
+            clearRemotePlayer();
+            const built = window.MechBuilders[FRAME_META[frameKey] ? frameKey : 'vesper'](THREE);
+            remotePlayer = built.root;
+            remotePlayer.userData.frameKey = frameKey;
+            remotePlayer.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; }});
+            scene.add(remotePlayer);
+            return remotePlayer;
+        }
+        function attachConnection(conn) {
+            if (mpConn && mpConn !== conn) mpConn.close();
+            mpConn=conn;
+            conn.on('open', ()=>{ setMPStatus('Connected'); conn.send({type:'hello', frame:selectedFrame}); });
+            conn.on('data', data=>{
+                if (!data) return;
+                if (data.type==='state') remoteState=data;
+                if (data.type==='hello') ensureRemotePlayer(data.frame || 'vesper');
+            });
+            conn.on('close', ()=>{ setMPStatus('Peer disconnected'); mpConn=null; clearRemotePlayer(); });
+            conn.on('error', ()=>setMPStatus('Connection error'));
+        }
+        function hostMultiplayer() {
+            const code=makeShareCode(); document.getElementById('mp-code').value=code;
+            if(mpPeer) mpPeer.destroy();
+            setMPStatus('Opening room…');
+            mpPeer=new Peer('ironframe-'+code.toLowerCase());
+            mpPeer.on('open', ()=>setMPStatus('Code: '+code+' — waiting'));
+            mpPeer.on('connection', attachConnection);
+            mpPeer.on('error', err=>setMPStatus('Host error: '+err.type));
+        }
+        function joinMultiplayer() {
+            const code=document.getElementById('mp-code').value.trim().toLowerCase().replace(/^ironframe-/,'');
+            if(!code){ setMPStatus('Enter a code'); return; }
+            if(mpPeer) mpPeer.destroy();
+            setMPStatus('Joining…'); mpPeer=new Peer();
+            mpPeer.on('open', ()=>attachConnection(mpPeer.connect('ironframe-'+code, {reliable:true})));
+            mpPeer.on('error', err=>setMPStatus('Join error: '+err.type));
+        }
+        function updateMultiplayer() {
+            if (mpConn && mpConn.open && player && performance.now()-mpLastSend>50) {
+                mpLastSend=performance.now();
+                mpConn.send({type:'state', frame:selectedFrame, x:player.mesh.position.x, y:player.mesh.position.y, z:player.mesh.position.z, yaw:yaw, health:player.health, weapon:selectedWeapon, firing:isMouseDown});
+            }
+            if(remoteState){
+                const r=ensureRemotePlayer(remoteState.frame || 'vesper');
+                r.position.lerp(new THREE.Vector3(remoteState.x||0, remoteState.y||1, remoteState.z||0), .35);
+                r.rotation.y=THREE.MathUtils.lerp(r.rotation.y, remoteState.yaw||0, .35);
+            }
+        }
+
         // Initialize Everything
         window.onload = function () {
             initThreeJS();
@@ -1001,6 +1071,8 @@
             document.getElementById('btn-desktop').addEventListener('click', () => { controlMode = 'desktop'; startGame(); });
             document.getElementById('btn-mobile').addEventListener('click', () => { controlMode = 'mobile'; if (document.pointerLockElement) document.exitPointerLock(); startGame(); });
             document.getElementById('btn-restart').addEventListener('click', startGame);
+            document.getElementById('mp-host').addEventListener('click', hostMultiplayer);
+            document.getElementById('mp-join').addEventListener('click', joinMultiplayer);
 
             lastTime = performance.now();
             requestAnimationFrame(gameLoop);
