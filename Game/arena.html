@@ -8,7 +8,9 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <link rel="stylesheet" href="../index.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 
     <!-- Per-frame 3D mech assets -->
     <script src="../assets/suits/VesperAssets/vesper.mech.js"></script>
@@ -89,42 +91,40 @@
 
     <!-- Start Screen -->
     <div id="screen-start" class="overlay">
-        <h1
-            class="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-blue-400 to-purple-600 mb-2 text-center drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]">
-            OPERATION<br>CYBERSPACE
-        </h1>
-        <p class="text-slate-400 text-lg mb-2 tracking-widest uppercase">Arena Protocol — First Person</p>
-        <p id="deploy-frame-line" class="text-slate-500 text-sm mb-8 tracking-widest uppercase">Deploying: VESPER-A
-        </p>
+        <div class="eyebrow">Combat Simulation</div>
+        <h1 class="menu-title">OPERATION<br>CYBERSPACE</h1>
+        <p class="menu-sub">Arena Protocol — First Person</p>
+        <p id="deploy-frame-line" class="menu-sub-dim">Deploying: VESPER-A</p>
 
-        <div class="bg-slate-900/80 p-6 rounded-lg border border-slate-700 mb-8 max-w-md w-full text-center">
-            <h3 class="text-blue-400 font-bold mb-4">CONTROLS</h3>
-            <div class="grid grid-cols-2 gap-4 text-sm text-slate-300">
-                <div class="bg-slate-800 p-3 rounded">
-                    <p class="font-bold text-white mb-1">DESKTOP</p>
+        <div class="menu-panel">
+            <h3 class="menu-panel-title">Controls</h3>
+            <div class="menu-controls-grid">
+                <div class="menu-control-col">
+                    <p class="menu-control-heading">Desktop</p>
                     <p>WASD or Arrow Keys to Move</p>
                     <p>Mouse to Look (click to lock)</p>
                     <p>Left Click to Fire</p><p>Keys 1–6 to Switch Weapons</p>
                 </div>
-                <div class="bg-slate-800 p-3 rounded">
-                    <p class="font-bold text-white mb-1">MOBILE</p>
+                <div class="menu-control-col">
+                    <p class="menu-control-heading">Mobile</p>
                     <p>Left Screen: Move</p>
                     <p>Right Screen: Look & Fire</p>
                 </div>
             </div>
         </div>
 
-        <div class="flex gap-4"><button id="btn-desktop" class="btn-primary">Desktop</button><button id="btn-mobile" class="btn-primary">Mobile</button></div>
+        <div class="menu-actions"><button id="btn-desktop" class="btn-primary">Desktop</button><button id="btn-mobile" class="btn-primary">Mobile</button></div>
     </div>
 
     <!-- Game Over Screen -->
     <div id="screen-game-over" class="overlay hidden">
-        <h1 class="text-6xl font-black text-red-500 mb-2 drop-shadow-[0_0_15px_rgba(239,68,68,0.6)]">M.I.A.</h1>
-        <p class="text-slate-300 text-xl mb-6">Mobile Suit Destroyed</p>
+        <div class="eyebrow alert">Frame Lost</div>
+        <h1 class="menu-title alert">M.I.A.</h1>
+        <p class="menu-sub">Mobile Suit Destroyed</p>
 
-        <div class="bg-slate-800 border border-slate-600 p-6 rounded-xl mb-8 text-center min-w-[300px]">
-            <p class="text-slate-400 text-sm uppercase tracking-wider mb-1">Final Score</p>
-            <p id="final-score" class="text-5xl font-black text-blue-400">0</p>
+        <div class="menu-panel menu-panel-score">
+            <p class="menu-control-heading">Final Score</p>
+            <p id="final-score" class="menu-score-value">0</p>
         </div>
 
         <button id="btn-restart" class="btn-primary">Deploy Again</button>
