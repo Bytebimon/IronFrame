@@ -18,6 +18,7 @@
     <script src="../assets/suits/bastionAssets/bastion.mech.js"></script>
     <script src="../assets/suits/WispAssets/wisp.mech.js"></script>
     <script src="../animation.js"></script>
+    <script src="../poses.js"></script>
 
 </head>
 
@@ -411,11 +412,11 @@
                     this.mesh.position.z += worldZ * moveDist;
 
                     this.currentSpeed = this.speed;
-                    if (this.animator) this.animator.set({ walk: true });
+                    this.isWalking = true;
                     this.mesh.position.y = 1 + Math.sin(Date.now() * 0.015) * 0.15;
                 } else {
                     this.currentSpeed = 0;
-                    if (this.animator) this.animator.set({ walk: false });
+                    this.isWalking = false;
                     this.mesh.position.y = 1;
                 }
 
@@ -441,9 +442,20 @@
                     this.shoot();
                 }
 
+                this.weaponClass = /sword/i.test(WEAPONS[selectedWeapon]?.name || '') ? 'sword' : 'rifle';
+                this.isAttacking = this.weaponClass === 'sword' && isFiring;
+
                 if (this.animator) {
-                    const weaponClass = /sword/i.test(WEAPONS[selectedWeapon]?.name || '') ? 'sword' : 'rifle';
-                    this.animator.set({ weaponClass, attack: weaponClass === 'sword' && isFiring });
+                    if (window.Poses) {
+                        Poses.applyState(this.animator, {
+                            moving: this.isWalking,
+                            weaponClass: this.weaponClass,
+                            attacking: this.isAttacking
+                        });
+                    } else {
+                        // poses.js not loaded — fall back to raw config
+                        this.animator.set({ walk: this.isWalking, weaponClass: this.weaponClass, attack: this.isAttacking });
+                    }
                     this.animator.update(dt);
                 }
 
@@ -862,7 +874,7 @@
                 updateThreatCount();
             }
 
-            updateMultiplayer();
+            updateMultiplayer(dt);
             renderer.render(scene, camera);
         }
 
@@ -1003,17 +1015,19 @@
 
         // --- SHARE-CODE MULTIPLAYER ---
         // This is peer-to-peer networking. The host shares the generated code;
-        // peers exchange transform/fire state directly and see each other live.
-        let mpPeer = null, mpConn = null, remotePlayer = null, remoteState = null;
+        // peers exchange transform/fire/pose state directly and see each other live.
+        let mpPeer = null, mpConn = null, remotePlayer = null, remotePlayerAnimator = null, remoteState = null;
         let mpLastSend = 0;
 
         function makeShareCode() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
         function setMPStatus(text) { const el=document.getElementById('mp-status'); if(el) el.textContent=text; }
-        function clearRemotePlayer() { if(remotePlayer){ scene.remove(remotePlayer); remotePlayer=null; } }
+        function clearRemotePlayer() { if(remotePlayer){ scene.remove(remotePlayer); remotePlayer=null; remotePlayerAnimator=null; } }
         function ensureRemotePlayer(frameKey) {
             if (remotePlayer && remotePlayer.userData.frameKey === frameKey) return remotePlayer;
             clearRemotePlayer();
             const built = window.MechBuilders[FRAME_META[frameKey] ? frameKey : 'vesper'](THREE);
+            if (window.SuitAnimation) window.SuitAnimation.makeParts(built, THREE);
+            remotePlayerAnimator = window.SuitAnimation ? window.SuitAnimation.create(built, THREE) : null;
             remotePlayer = built.root;
             remotePlayer.userData.frameKey = frameKey;
             remotePlayer.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; }});
@@ -1049,15 +1063,45 @@
             mpPeer.on('open', ()=>attachConnection(mpPeer.connect('ironframe-'+code, {reliable:true})));
             mpPeer.on('error', err=>setMPStatus('Join error: '+err.type));
         }
-        function updateMultiplayer() {
+        function updateMultiplayer(dt) {
             if (mpConn && mpConn.open && player && performance.now()-mpLastSend>50) {
                 mpLastSend=performance.now();
-                mpConn.send({type:'state', frame:selectedFrame, x:player.mesh.position.x, y:player.mesh.position.y, z:player.mesh.position.z, yaw:yaw, health:player.health, weapon:selectedWeapon, firing:isMouseDown});
+                mpConn.send({
+                    type: 'state',
+                    frame: selectedFrame,
+                    x: player.mesh.position.x, y: player.mesh.position.y, z: player.mesh.position.z,
+                    yaw: yaw,
+                    health: player.health,
+                    weapon: selectedWeapon,
+                    firing: isMouseDown,
+                    // Pose state so the remote peer can animate this mech's
+                    // walk cycle / weapon pose instead of showing it frozen.
+                    moving: !!player.isWalking,
+                    weaponClass: player.weaponClass || 'rifle',
+                    attacking: !!player.isAttacking
+                });
             }
             if(remoteState){
                 const r=ensureRemotePlayer(remoteState.frame || 'vesper');
                 r.position.lerp(new THREE.Vector3(remoteState.x||0, remoteState.y||1, remoteState.z||0), .35);
                 r.rotation.y=THREE.MathUtils.lerp(r.rotation.y, remoteState.yaw||0, .35);
+
+                if (remotePlayerAnimator) {
+                    if (window.Poses) {
+                        Poses.applyState(remotePlayerAnimator, {
+                            moving: remoteState.moving,
+                            weaponClass: remoteState.weaponClass,
+                            attacking: remoteState.attacking
+                        });
+                    } else {
+                        remotePlayerAnimator.set({
+                            walk: !!remoteState.moving,
+                            weaponClass: remoteState.weaponClass === 'sword' ? 'sword' : 'rifle',
+                            attack: !!remoteState.attacking
+                        });
+                    }
+                    remotePlayerAnimator.update(dt || 1 / 60);
+                }
             }
         }
 

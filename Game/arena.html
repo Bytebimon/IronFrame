@@ -17,6 +17,7 @@
     <script src="../assets/suits/bastionAssets/bastion.mech.js"></script>
     <script src="../assets/suits/WispAssets/wisp.mech.js"></script>
     <script src="../animation.js"></script>
+    <script src="../poses.js"></script>
 
 </head>
 
@@ -402,11 +403,11 @@
                     this.mesh.position.z += worldZ * moveDist;
 
                     this.currentSpeed = this.speed;
-                    if (this.animator) this.animator.set({ walk: true });
+                    this.isWalking = true;
                     this.mesh.position.y = 1 + Math.sin(Date.now() * 0.015) * 0.15;
                 } else {
                     this.currentSpeed = 0;
-                    if (this.animator) this.animator.set({ walk: false });
+                    this.isWalking = false;
                     this.mesh.position.y = 1;
                 }
 
@@ -432,9 +433,20 @@
                     this.shoot();
                 }
 
+                this.weaponClass = /sword/i.test(WEAPONS[selectedWeapon]?.name || '') ? 'sword' : 'rifle';
+                this.isAttacking = this.weaponClass === 'sword' && isFiring;
+
                 if (this.animator) {
-                    const weaponClass = /sword/i.test(WEAPONS[selectedWeapon]?.name || '') ? 'sword' : 'rifle';
-                    this.animator.set({ weaponClass, attack: weaponClass === 'sword' && isFiring });
+                    if (window.Poses) {
+                        Poses.applyState(this.animator, {
+                            moving: this.isWalking,
+                            weaponClass: this.weaponClass,
+                            attacking: this.isAttacking
+                        });
+                    } else {
+                        // poses.js not loaded — fall back to raw config
+                        this.animator.set({ walk: this.isWalking, weaponClass: this.weaponClass, attack: this.isAttacking });
+                    }
                     this.animator.update(dt);
                 }
 
