@@ -1,0 +1,14 @@
+[ {
+  "suit": "bastion",
+  "file_path": "bastionAssets/"
+  },
+
+  {"suit":"Vesper",
+   "file_path":"VesperAssets/"
+  },
+
+  {"suit":"Wisp",
+  "file_path":"WispAssets/"}
+
+  
+]
