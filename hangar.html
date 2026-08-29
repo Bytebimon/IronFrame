@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IRONFRAMEBuilder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Rajdhani:wght@500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+
+    <header>
+        <div class="wrap">
+            <nav>
+                <div class="logo">IRON<span>FRAME</span></div>
+                <div class="navlinks">
+                    <a href="Roster.html">Unit Roster</a>
+                    <a href="index.html">Home</a>
+                </div>
+                <a class="nav-cta" href="#cta">Enter Hangar</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- Roster Section -->
+        <section id="roster">
+            <div class="wrap">
+                <div class="section-head">
+                    <div class="eyebrow">Hangar</div>
+                    <h2>Your Frames</h2>
+                    <p>Here is your custom loadout</p>
+                </div>
+
+                <!-- We will inject all the saved loadouts into this container -->
+                <div class="roster" id="roster-container">
+                    <!-- Javascript will populate this -->
+                </div>
+
+                <script>
+                    function getAllSavedLoadouts() {
+                        var savedLoadouts = [];
+                        var cachePrefix = 'ironframe_loadout_';
+
+                        for (var i = 0; i < localStorage.length; i++) {
+                            var key = localStorage.key(i);
+                            if (key && key.indexOf(cachePrefix) === 0) {
+                                try {
+                                    var cachedData = localStorage.getItem(key);
+                                    var loadout = JSON.parse(cachedData);
+
+                                    if (loadout && loadout.frame) {
+                                        savedLoadouts.push(loadout);
+                                    }
+                                } catch (e) {
+                                    console.warn('Failed to parse saved loadout for key: ' + key, e);
+                                }
+                            }
+                        }
+                        return savedLoadouts;
+                    }
+
+                    // 1. Get the loadouts
+                    var myLoadouts = getAllSavedLoadouts();
+
+                    // 2. Target the container
+                    var rosterContainer = document.getElementById("roster-container");
+
+                    // 3. Clear the container just in case
+                    rosterContainer.innerHTML = "";
+
+                    // 4. Render the loadouts
+                    if (myLoadouts.length === 0) {
+                        rosterContainer.innerHTML = "<p>No custom loadouts found in the cache.</p>";
+                        console.log("No loadouts found in cache.");
+                    } else {
+                        console.log("Found " + myLoadouts.length + " saved loadout(s):");
+
+                        myLoadouts.forEach(function (loadout) {
+                            // Extract just the part IDs from the parts object to make a comma-separated list
+                            var partsList = Object.values(loadout.parts).join(", ");
+
+                            // Create the HTML for this specific loadout
+                            var loadoutHTML = `
+                                <div class="loadout-container">
+                                    <div class="loadout-image">
+                                    </div>
+                                    <div class="loadout-info">
+                                        <h2>${loadout.frame.toUpperCase()}</h2>
+                                        <p>${partsList.replace(/-/g, ' ')}</p>
+                                    </div>
+                                </div>
+                            `;
+
+                            // Append it to the container (using += so we don't overwrite previous ones)
+                            rosterContainer.innerHTML += loadoutHTML;
+
+                            // Keep console logs for debugging
+                            console.log("Frame: " + loadout.frame.toUpperCase());
+                            console.log("Parts:", loadout.parts);
+                            console.log("----------------------");
+                        });
+                    }
+                </script>
+            </div>
+        </section>
+
+        <!-- Customization Section -->
+        <section id="customize">
+
+        </section>
+
+    </main>
+
+    <footer>
+        <div class="wrap foot-grid">
+            <div class="logo" style="font-size:16px;">IRON<span>FRAME</span></div>
+            <div class="foot-links">
+                <a href="#pipeline">Build System</a>
+                <a href="#roster">Roster</a>
+                <a href="#customize">Customization</a>
+            </div>
+            <div class="foot-note">Made by Bluebytes group</div>
+        </div>
+    </footer>
+
+</body>
+
+</html>
