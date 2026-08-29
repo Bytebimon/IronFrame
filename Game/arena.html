@@ -499,7 +499,7 @@
             <div class="grid grid-cols-2 gap-4 text-sm text-slate-300">
                 <div class="bg-slate-800 p-3 rounded">
                     <p class="font-bold text-white mb-1">DESKTOP</p>
-                    <p>WASD to Move</p>
+                    <p>WASD or Arrow Keys to Move</p>
                     <p>Mouse to Look (click to lock)</p>
                     <p>Left Click to Fire</p>
                 </div>
@@ -511,7 +511,7 @@
             </div>
         </div>
 
-        <button id="btn-start" class="btn">Initialize Sortie</button>
+        <div class="flex gap-4"><button id="btn-desktop" class="btn-primary">Desktop</button><button id="btn-mobile" class="btn-primary">Mobile</button></div>
     </div>
 
     <!-- Game Over Screen -->
@@ -577,7 +577,7 @@
         const frameMeta = FRAME_META[selectedFrame];
 
         // Inputs
-        const keys = { w: false, a: false, s: false, d: false };
+        const keys = { w: false, a: false, s: false, d: false, arrowup: false, arrowleft: false, arrowdown: false, arrowright: false };
         let isMouseDown = false;
         let pointerLocked = false;
 
@@ -587,6 +587,7 @@
 
         // Touch Input
         const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        let controlMode = isTouchDevice ? 'mobile' : 'desktop';
         let moveTouchId = null, aimTouchId = null;
         let moveVector = new THREE.Vector2(0, 0);
         let aimVector = new THREE.Vector2(0, 0);
@@ -735,7 +736,7 @@
                 if (this.health <= 0) return;
 
                 // --- LOOK ---
-                if (isTouchDevice && isAimingTouch) {
+                if (controlMode === 'mobile' && isAimingTouch) {
                     yaw -= aimVector.x * TOUCH_LOOK_SPEED * dt;
                     pitch -= aimVector.y * TOUCH_LOOK_SPEED * dt;
                     pitch = THREE.MathUtils.clamp(pitch, -MAX_PITCH, MAX_PITCH);
@@ -744,14 +745,14 @@
 
                 // --- MOVEMENT (camera-relative) ---
                 let dx = 0, dz = 0;
-                if (isTouchDevice) {
+                if (controlMode === 'mobile') {
                     dx = moveVector.x;
                     dz = -moveVector.y;
                 } else {
-                    if (keys.w) dz += 1;
-                    if (keys.s) dz -= 1;
-                    if (keys.a) dx -= 1;
-                    if (keys.d) dx += 1;
+                    if (keys.w || keys.arrowup) dz -= 1;
+                    if (keys.s || keys.arrowdown) dz += 1;
+                    if (keys.a || keys.arrowleft) dx -= 1;
+                    if (keys.d || keys.arrowright) dx += 1;
                 }
 
                 if (dx !== 0 || dz !== 0) {
@@ -790,7 +791,7 @@
                 camera.rotation.z = 0;
 
                 // --- SHOOTING ---
-                const isFiring = isTouchDevice ? isAimingTouch : isMouseDown;
+                const isFiring = controlMode === 'mobile' ? isAimingTouch : isMouseDown;
                 if (isFiring && !overheated && Date.now() - this.lastShotTime > WEAPON_COOLDOWN) {
                     this.shoot();
                 }
@@ -960,11 +961,11 @@
             // Desktop Keyboard
             window.addEventListener('keydown', (e) => {
                 const key = e.key.toLowerCase();
-                if (keys.hasOwnProperty(key)) keys[key] = true;
+                if (keys.hasOwnProperty(key)) { e.preventDefault(); keys[key] = true; }
             });
             window.addEventListener('keyup', (e) => {
                 const key = e.key.toLowerCase();
-                if (keys.hasOwnProperty(key)) keys[key] = false;
+                if (keys.hasOwnProperty(key)) { e.preventDefault(); keys[key] = false; }
             });
 
             const canvasEl = document.getElementById('game-canvas');
@@ -973,7 +974,7 @@
             document.addEventListener('pointerlockchange', () => {
                 pointerLocked = document.pointerLockElement === canvasEl;
                 const hint = document.getElementById('pointer-hint');
-                if (currentState === GameState.PLAYING && !pointerLocked && !isTouchDevice) {
+                if (currentState === GameState.PLAYING && !pointerLocked && controlMode === 'desktop') {
                     hint.classList.remove('hidden');
                 } else {
                     hint.classList.add('hidden');
@@ -981,7 +982,7 @@
             });
 
             canvasEl.addEventListener('click', () => {
-                if (currentState === GameState.PLAYING && !isTouchDevice && !pointerLocked) {
+                if (currentState === GameState.PLAYING && controlMode === 'desktop' && !pointerLocked) {
                     canvasEl.requestPointerLock();
                 }
             });
@@ -998,10 +999,8 @@
             });
             window.addEventListener('mouseup', () => { isMouseDown = false; });
 
-            if (isTouchDevice) {
-                document.getElementById('mobile-controls').style.display = 'block';
-                setupVirtualJoysticks();
-            }
+            document.getElementById('mobile-controls').style.display = 'none';
+            setupVirtualJoysticks();
         }
 
         function setupVirtualJoysticks() {
@@ -1230,9 +1229,8 @@
             currentState = GameState.PLAYING;
             lastTime = performance.now();
 
-            if (!isTouchDevice) {
-                document.getElementById('game-canvas').requestPointerLock();
-            }
+            document.getElementById('mobile-controls').style.display = controlMode === 'mobile' ? 'block' : 'none';
+            if (controlMode === 'desktop') document.getElementById('game-canvas').requestPointerLock();
         }
 
         function endGame() {
@@ -1335,7 +1333,8 @@
             setupInputs();
             updateFrameIdentityHUD();
 
-            document.getElementById('btn-start').addEventListener('click', startGame);
+            document.getElementById('btn-desktop').addEventListener('click', () => { controlMode = 'desktop'; startGame(); });
+            document.getElementById('btn-mobile').addEventListener('click', () => { controlMode = 'mobile'; if (document.pointerLockElement) document.exitPointerLock(); startGame(); });
             document.getElementById('btn-restart').addEventListener('click', startGame);
 
             lastTime = performance.now();
