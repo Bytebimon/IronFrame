@@ -6,9 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IRONFRAMEBuilder</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Rajdhani:wght@500;600;700&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
     <style>
       .unit-visual { position:relative; height:260px; overflow:hidden; background:radial-gradient(circle at 50% 35%, rgba(74,144,196,.14), transparent 62%); }
@@ -45,10 +43,8 @@
                 </div>
                 <div class="roster">
                     <!-- Card 1 -->
-
                     <div class="unit-card hud-frame">
                         <div class="unit-visual" data-suit="vesper"><div class="model-label">DRAG TO INSPECT</div></div>
-
                         <div class="unit-name">VESPER-A</div>
                         <div class="unit-class">Assault Frame</div>
                         <div class="unit-specs">
@@ -66,7 +62,6 @@
                     <!-- Card 2 -->
                     <div class="unit-card hud-frame">
                         <div class="unit-visual" data-suit="bastion"><div class="model-label">DRAG TO INSPECT</div></div>
-
                         <div class="unit-name">BASTION-K</div>
                         <div class="unit-class">Heavy Support</div>
                         <div class="unit-specs">
@@ -104,29 +99,30 @@
 
         <!-- Customization Section -->
         <section id="customize">
-            <div class="wrap customize">
-
-
-            </div>
+            <div class="wrap customize"></div>
         </section>
+    </main>
 
-        <footer>
-            <div class="wrap foot-grid">
-                <div class="logo" style="font-size:16px;">IRON<span>FRAME</span></div>
-                <div class="foot-links">
-                    <a href="mechselect.html">Build System</a>
-                    <a href="index.html">Home</a>
-                </div>
-                <div class="foot-note">Made by Bluebytes group</div>
+    <footer>
+        <div class="wrap foot-grid">
+            <div class="logo" style="font-size:16px;">IRON<span>FRAME</span></div>
+            <div class="foot-links">
+                <a href="mechselect.html">Build System</a>
+                <a href="index.html">Home</a>
             </div>
-        </footer>
+            <div class="foot-note">Made by Bluebytes group</div>
+        </div>
+    </footer>
 
+    <!-- Updated Three.js scripts to r128 for non-ES module support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.1/examples/js/controls/OrbitControls.js"></script>
+    <!-- Ensure these local file paths match your filesystem casing exactly -->
     <script src="assets/suits/VesperAssets/vesper.mech.js"></script>
     <script src="assets/suits/bastionAssets/bastion.mech.js"></script>
     <script src="assets/suits/WispAssets/wisp.mech.js"></script>
+
     <script>
       window.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.unit-visual[data-suit]').forEach((container) => {
@@ -156,5 +152,4 @@
       });
     </script>
 </body>
-
 </html>
